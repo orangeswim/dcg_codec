@@ -10,8 +10,12 @@ if (global.btoa == undefined || globalThis.atob == undefined) {
     return Buffer.from(str, "latin1").toString("base64");
   };
   global.atob = (b64Encoded) => {
-    return Buffer.from(b64Encoded, "base64").toString("latin1");
+    return Buffer.from(b64Encoded, "base64");
   };
+}
+
+function getBytes(b64Encoded) {
+  return new Buffer.from(b64Encoded, "base64");
 }
 
 /**
@@ -45,7 +49,9 @@ function dcg_decode(input) {
   const nextByte = (offset = 1) => {
     bytePos += offset;
   };
-  const getByte = () => bData.charCodeAt(bytePos);
+  const getByte = () => bData[bytePos]; //bData.charCodeAt(bytePos);
+  const getString = (length) =>
+    bData.slice(bytePos, bytePos + length).toString("latin1");
 
   var byte = getByte();
   const version = (byte & 240) >> 4;
@@ -79,7 +85,8 @@ function dcg_decode(input) {
   var totalCards = 0;
   const readCard = () => {
     nextByte();
-    const set = bData.substr(bytePos, 4).trim();
+    //const set = bData.substr(bytePos, 4).trim();
+    const set = getString(4).trim();
     console.log(bytePos, "set", set);
 
     nextByte(4);
@@ -144,10 +151,10 @@ function dcg_decode(input) {
   }
 
   for (var i = 0; i < 20; i++) {
-    console.log(i, bData.charCodeAt(i).toString(2).padStart(8, "0"));
+    console.log(i, bData[i].toString(2).padStart(8, "0"));
   }
 }
 
 dcg_decode(
-  "DCGAREdU1QxIEHBU1QxIE-CwcHBwUHBwUFBwcHBQUFTdGFydGVyIERlY2ssIEdhaWEgUmVkIFtTVC0xXQ__"
+  "DCGAVQdU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcHBQlNUMiBBRwNTdGFydGVyIERlY2ssIEdhaWEgUmVkIFtTVC0xXQ__"
 );
