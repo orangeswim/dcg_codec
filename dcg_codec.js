@@ -282,9 +282,13 @@ const btoa = (uintarr) => global.encode(uintarr);
 const atob = (b64) => new Uint8Array(global.decode(b64));
 
 var data = {
-  digiEggs: [{ id: "ST1-01", count: 4 }],
+  digiEggs: [
+    { id: "ST1-01", count: 4 },
+    { id: "ST1-01", parallel: 1, count: 4 },
+    { id: "ST2-01", count: 1 },
+  ],
   deck: [
-    { id: "ST1-02", count: 4 },
+    { id: "ST1-02", parallel: 1, count: 4 },
     { id: "ST1-03", count: 4 },
     { id: "ST1-04", count: 4 },
     { id: "ST1-05", count: 4 },
