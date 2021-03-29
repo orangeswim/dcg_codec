@@ -5,25 +5,203 @@ if (!String.prototype.startsWith) {
   };
 }
 
-if (global.btoa == undefined || globalThis.atob == undefined) {
-  global.btoa = (str) => {
-    return Buffer.from(str, "latin1").toString("base64");
-  };
-  global.atob = (b64Encoded) => {
-    return Buffer.from(b64Encoded, "base64");
-  };
+// http://www.onicos.com/staff/iz/amuse/javascript/expert/utf.txt
+
+/* utf.js - UTF-8 <=> UTF-16 convertion
+ *
+ * Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
+ * Version: 1.0
+ * LastModified: Dec 25 1999
+ * This library is free.  You can redistribute it and/or modify it.
+ */
+
+function Utf8ArrayToStr(array) {
+  var out, i, len, c;
+  var char2, char3;
+
+  out = "";
+  len = array.length;
+  i = 0;
+  while (i < len) {
+    c = array[i++];
+    switch (c >> 4) {
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+        // 0xxxxxxx
+        out += String.fromCharCode(c);
+        break;
+      case 12:
+      case 13:
+        // 110x xxxx   10xx xxxx
+        char2 = array[i++];
+        out += String.fromCharCode(((c & 0x1f) << 6) | (char2 & 0x3f));
+        break;
+      case 14:
+        // 1110 xxxx  10xx xxxx  10xx xxxx
+        char2 = array[i++];
+        char3 = array[i++];
+        out += String.fromCharCode(
+          ((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0)
+        );
+        break;
+    }
+  }
+
+  return out;
 }
+
+// if (global.btoa == undefined || globalThis.atob == undefined) {
+//   global.btoa = (str) => {
+//     return Buffer.from(str, "utf8").toString("base64");
+//   };
+//   global.atob = (b64Encoded) => {
+//     return Buffer.from(b64Encoded, "base64").toString("utf8");
+//   };
+// }
+
+/*
+ * base64-arraybuffer
+ * https://github.com/niklasvh/base64-arraybuffer
+ *
+ * Copyright (c) 2012 Niklas von Hertzen
+ * Licensed under the MIT license.
+ */
+(function () {
+  "use strict";
+
+  var chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+  // Use a lookup table to find the index.
+  var lookup = new Uint8Array(256);
+  for (var i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+
+  global.encode = function (arraybuffer) {
+    var bytes = new Uint8Array(arraybuffer),
+      i,
+      len = bytes.length,
+      base64 = "";
+
+    for (i = 0; i < len; i += 3) {
+      base64 += chars[bytes[i] >> 2];
+      base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+      base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+      base64 += chars[bytes[i + 2] & 63];
+    }
+
+    if (len % 3 === 2) {
+      base64 = base64.substring(0, base64.length - 1) + "=";
+    } else if (len % 3 === 1) {
+      base64 = base64.substring(0, base64.length - 2) + "==";
+    }
+
+    return base64;
+  };
+
+  global.decode = function (base64) {
+    var bufferLength = base64.length * 0.75,
+      len = base64.length,
+      i,
+      p = 0,
+      encoded1,
+      encoded2,
+      encoded3,
+      encoded4;
+
+    if (base64[base64.length - 1] === "=") {
+      bufferLength--;
+      if (base64[base64.length - 2] === "=") {
+        bufferLength--;
+      }
+    }
+
+    var arraybuffer = new ArrayBuffer(bufferLength),
+      bytes = new Uint8Array(arraybuffer);
+
+    for (i = 0; i < len; i += 4) {
+      encoded1 = lookup[base64.charCodeAt(i)];
+      encoded2 = lookup[base64.charCodeAt(i + 1)];
+      encoded3 = lookup[base64.charCodeAt(i + 2)];
+      encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+
+    return arraybuffer;
+  };
+})();
+
+const btoa = global.decode;
+const atob = (b64) => new Uint8Array(global.decode(b64));
+
+var data = {
+  digiEggs: { id: "ST1-01", count: 4 },
+  deck: [
+    { id: "ST1-02", parallel: 1, count: 4 },
+    { id: "ST1-03", count: 4 },
+    { id: "ST1-04", count: 4 },
+    { id: "ST1-05", count: 4 },
+    { id: "ST1-06", count: 4 },
+    { id: "ST1-07", count: 2 },
+    { id: "ST1-08", count: 4 },
+    { id: "ST1-09", count: 4 },
+    { id: "ST1-10", count: 2 },
+    { id: "ST1-11", count: 2 },
+    { id: "ST1-12", count: 4 },
+    { id: "ST1-13", count: 4 },
+    { id: "ST1-14", count: 4 },
+    { id: "ST1-15", count: 2 },
+    { id: "ST1-16", count: 2 },
+  ],
+  name: "Deck name",
+};
 
 /**
  *
- * @param {string} input
+ * @param {string} data
  * @returns string base64 encoded string
  */
-function dcg_encode(input) {
+function dcg_encode(data) {
   var encodedString = "DCG";
+
+  const eggs = new Map();
+  // group eggs into sets
+  if (data.digiEggs) {
+    data.digiEggs.forEach((eggs) => {
+      var temp = eggs.id.split("-");
+      var set = temp[0];
+      var id = temp[1];
+      if (eggs.has(set)) {
+        eggs.get(set).push([id, count]);
+      } else {
+        eggs.set(set, [id, count]);
+      }
+    });
+  }
+
+  const version = 0;
+  const eggCount = eggSets.count;
+  const nameLength =
+    data.name != undefined && data.name.length ? data.name.length : 0;
+
+  var sets = new Map();
+  // group cards into sets
 
   return encodedString;
 }
+
+// decode from json
+//
 
 /**
  *
@@ -47,7 +225,8 @@ function dcg_decode(input) {
   };
   const getByte = () => bData[bytePos];
   const getString = (length) =>
-    bData.slice(bytePos, bytePos + length).toString("utf8");
+    Utf8ArrayToStr(bData.slice(bytePos, bytePos + length));
+  //bData.slice(bytePos, bytePos + length).toString("utf8");
 
   var byte = getByte();
   const version = (byte & 240) >> 4;
@@ -152,5 +331,5 @@ function dcg_decode(input) {
 }
 
 dcg_decode(
-  "DCGARkiU1Q1IEHBU1Q1IE-CwcHBwcFBwcFBQUHBwUFTdGFydGVyIERlY2ssIE1hY2hpbmUgQmxhY2sgW1NULTVd"
+  "DCGAV0dU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcEBiFNUMiBBRwNTVDMgQUQEU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 );
