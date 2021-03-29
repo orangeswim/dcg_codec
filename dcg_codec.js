@@ -5,6 +5,43 @@ if (!String.prototype.startsWith) {
   };
 }
 
+// https://gist.github.com/pascaldekloe/62546103a1576803dade9269ccf76330
+// Marshals a string to an Uint8Array.
+function encodeUTF8(s) {
+  var i = 0,
+    bytes = new Uint8Array(s.length * 4);
+  for (var ci = 0; ci != s.length; ci++) {
+    var c = s.charCodeAt(ci);
+    if (c < 128) {
+      bytes[i++] = c;
+      continue;
+    }
+    if (c < 2048) {
+      bytes[i++] = (c >> 6) | 192;
+    } else {
+      if (c > 0xd7ff && c < 0xdc00) {
+        if (++ci >= s.length)
+          throw new Error("UTF-8 encode: incomplete surrogate pair");
+        var c2 = s.charCodeAt(ci);
+        if (c2 < 0xdc00 || c2 > 0xdfff)
+          throw new Error(
+            "UTF-8 encode: second surrogate character 0x" +
+              c2.toString(16) +
+              " at index " +
+              ci +
+              " out of range"
+          );
+        c = 0x10000 + ((c & 0x03ff) << 10) + (c2 & 0x03ff);
+        bytes[i++] = (c >> 18) | 240;
+        bytes[i++] = ((c >> 12) & 63) | 128;
+      } else bytes[i++] = (c >> 12) | 224;
+      bytes[i++] = ((c >> 6) & 63) | 128;
+    }
+    bytes[i++] = (c & 63) | 128;
+  }
+  return bytes.subarray(0, i);
+}
+
 // http://www.onicos.com/staff/iz/amuse/javascript/expert/utf.txt
 
 /* utf.js - UTF-8 <=> UTF-16 convertion
@@ -178,30 +215,41 @@ var data = {
 function dcg_encode(data) {
   var encodedString = "DCG";
 
-  const eggs = new Map();
+  var eggs;
   const setPadding = new Map();
   // group eggs into sets
   if (data.digiEggs === undefined && data.digiEggs.length === undefined) {
     console.log("Bad data");
     return null;
   }
-  if (data.digiEggs) {
-    data.digiEggs.forEach((egg) => {
-      var temp = egg.id.split("-");
+
+  var parseDataToMap = (parseData) => {
+    var mapData = new Map();
+    parseData.forEach((d) => {
+      var temp = d.id.split("-");
       var set = temp[0];
       var id = Number(temp[1]);
-      var parallel = egg.parallel || 0;
-      if (eggs.has(set)) {
-        eggs.get(set).push([id, egg.count, parallel]);
+      var parallel = d.parallel || 0;
+      if (mapData.has(set)) {
+        mapData.get(set).push([id, d.count, parallel]);
       } else {
-        eggs.set(set, [[id, egg.count, parallel]]);
+        mapData.set(set, [[id, d.count, parallel]]);
         setPadding.set(set, temp[1].length);
       }
     });
+    return mapData;
+  };
+
+  if (data.digiEggs) {
+    eggs = parseDataToMap(data.digiEggs);
   }
 
   const version = 0;
   const eggCount = eggs.size;
+  if (data?.name === undefined) {
+    console.log("Bad name");
+    return;
+  }
   const nameLength =
     data.name != undefined && data.name.length ? data.name.length : 0;
 
@@ -222,55 +270,75 @@ function dcg_encode(data) {
   writeByte(byte);
   writeByte(nameLength);
 
-  //Write egg header if eggs
-  if (eggCount > 0) {
-    var eggKeys = Array.from(eggs.keys()).sort();
-    for (var i = 0; i < eggKeys.length; i++) {
-      var info = eggs.get(eggKeys[i]);
+  var writeWithCarry = (value) => {
+    var carry = value > 127;
+    byte = (carry << 7) | (value & 127);
+    writeByte(byte);
+    if (carry) {
+      writeWithCarry(value >> 7);
+    }
+  };
+
+  var writeDeckMap = (deckMap) => {
+    var setKeys = Array.from(deckMap.keys()).sort();
+    for (var k = 0; k < setKeys.length; k++) {
+      var info = deckMap.get(setKeys[k]);
       //write set ascii
-      writeString(eggKeys[i].padEnd(4, " "), 4);
-      var padding = setPadding.get(eggKeys[i]);
+      writeString(setKeys[k].padEnd(4, " "), 4);
+      var padding = setPadding.get(setKeys[k]);
       byte = (padding << 6) | (info.length & 63);
       writeByte(byte);
 
       info.sort((a, b) => {
         //compare id
-        if (a[0] < b[0]) {
+        if (a[0] - b[0] == 0) {
           // compare id
-          return -1;
+          return a[2] - b[2];
+        } else {
+          a[0] - b[0];
         }
-        if (a[2] < b[2]) {
-          // compare parallel
-          return -1;
-        }
-        return 1;
       });
       console.log(info);
+
       var currentOffset = 0;
-      for (var i = 0; i < info.length; i++) {
-        var count = info[i][1];
-        var parallel = info[i][2];
-        var offset;
+      for (var j = 0; j < info.length; j++) {
+        var count = info[j][1];
+        var parallel = info[j][2];
+        var id = info[j][0];
+        var offset = id - currentOffset;
+        var carry = offset > 3;
+        byte =
+          ((count - 1) << 6) |
+          ((parallel << 3) & 56) |
+          (carry << 2) |
+          (offset & 3);
+        writeByte(byte);
+        if (carry) {
+          writeWithCarry(offset >> 2);
+        }
+        currentOffset = id;
       }
     }
+  };
+
+  //Write egg header if eggs
+  if (eggCount > 0) {
+    writeDeckMap(eggs);
   }
 
-  var sets = new Map();
   // group cards into sets
   if (data.deck == undefined) {
     console.log("Bad format");
     return null;
   }
-  data.deck.forEach((card) => {
-    var temp = card.id.split("-");
-    var set = temp[0];
-    var id = temp[1];
-    if (sets.has(set)) {
-      sets.get(set).push([id, card.count, card.parallel]);
-    } else {
-      sets.set(set, [id, card.count, card.parallel]);
+  var sets = parseDataToMap(data.deck);
+
+  writeDeckMap(sets);
+  if (data?.name?.length > 0) {
+    for (var i = 0; i < deckNameBytes.length; i++) {
+      writeByte(deckNameBytes[i]);
     }
-  });
+  }
 
   return encodedString;
 }
@@ -358,7 +426,7 @@ function dcg_decode(input) {
       byte = getByte();
       const carry = byte & 128;
       const value = byte & 127;
-      const newValue = (value << written) & offsetValue;
+      const newValue = (value << written) | offsetValue;
       if (carry) {
         return getValueWithCarry(newValue, written + 7);
       }
@@ -408,5 +476,7 @@ function dcg_decode(input) {
 /* dcg_decode(
   "DCGAV0dU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcEBiFNUMiBBRwNTVDMgQUQEU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 ); */
-
-dcg_encode(data);
+dcg_decode(
+  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
+);
+//dcg_encode(data);
