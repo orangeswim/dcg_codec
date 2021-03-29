@@ -304,7 +304,7 @@ var data = {
     { id: "ST1-15", count: 2 },
     { id: "ST1-16", count: 2 },
   ],
-  name: "Starter Deck, Gaia Red [ST-1]",
+  name: "Deck name",
 };
 
 /**
@@ -373,6 +373,7 @@ function dcg_encode(data) {
 
   var byte = (version << 4) | (eggCount & 15);
   writeByte(byte);
+  writeByte(0);
   writeByte(nameBytesLength);
 
   var writeWithCarry = (value) => {
@@ -391,7 +392,7 @@ function dcg_encode(data) {
       //write set ascii
       writeString(setKeys[k].padEnd(4, " "), 4);
       var padding = setPadding.get(setKeys[k]);
-      byte = (padding << 6) | (info.length & 63);
+      byte = ((padding - 1) << 6) | (info.length & 63);
       writeByte(byte);
 
       info.sort((a, b) => {
@@ -499,13 +500,20 @@ function dcg_decode(input) {
     version,
     "eggCount",
     eggCount,
-    byte.toString(2).padStart(8, "0")
+    byte.toString(2).padStart(8, "0"),
+    byte.toString(16).padStart(2, "0")
   );
 
   nextByte();
   byte = getByte();
   const checksum = byte;
-  console.log(bytePos, "checksum", checksum, byte.toString(2).padStart(8, "0"));
+  console.log(
+    bytePos,
+    "checksum",
+    checksum,
+    byte.toString(2).padStart(8, "0"),
+    byte.toString(16).padStart(2, "0")
+  );
 
   nextByte();
   byte = getByte();
@@ -515,7 +523,8 @@ function dcg_decode(input) {
     bytePos,
     "nameLength",
     nameLength,
-    byte.toString(2).padStart(8, "0")
+    byte.toString(2).padStart(8, "0"),
+    byte.toString(16).padStart(2, "0")
   );
 
   var totalCards = 0;
@@ -536,7 +545,8 @@ function dcg_decode(input) {
       padding,
       "count",
       count,
-      byte.toString(2).padStart(8, "0")
+      byte.toString(2).padStart(8, "0"),
+      byte.toString(16).padStart(2, "0")
     );
 
     const getValueWithCarry = (offsetValue, written) => {
@@ -573,7 +583,8 @@ function dcg_decode(input) {
         "offset",
         offset,
         `${set}-${setCardOffset.toString().padStart(padding, "0")}`,
-        byte.toString(2).padStart(8, "0")
+        byte.toString(2).padStart(8, "0"),
+        byte.toString(16).padStart(2, "0")
       );
     }
   };
@@ -587,7 +598,11 @@ function dcg_decode(input) {
   }
 
   for (var i = 0; i < 20; i++) {
-    console.log(i, bData[i].toString(2).padStart(8, "0"));
+    console.log(
+      i,
+      bData[i].toString(2).padStart(8, "0"),
+      bData[i].toString(16).padStart(2, "0")
+    );
   }
 }
 
@@ -597,4 +612,5 @@ function dcg_decode(input) {
 //dcg_decode(
 //  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 //);
+//dcg_decode("DCGAh0JU1QxIEIBiFNUMiBBAVNUMSBPysHBwcFBwcFBQcHBwUFBRGVjayBuYW1l");
 dcg_encode(data);
