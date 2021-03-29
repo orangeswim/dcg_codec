@@ -93,6 +93,41 @@ function Utf8ArrayToStr(array) {
   return out;
 }
 
+//https://gist.github.com/lihnux/2aa4a6f5a9170974f6aa
+// 한 -> ED 95 9C
+function toUTF8Array(str) {
+  let utf8 = [];
+  for (let i = 0; i < str.length; i++) {
+    let charcode = str.charCodeAt(i);
+    if (charcode < 0x80) utf8.push(charcode);
+    else if (charcode < 0x800) {
+      utf8.push(0xc0 | (charcode >> 6), 0x80 | (charcode & 0x3f));
+    } else if (charcode < 0xd800 || charcode >= 0xe000) {
+      utf8.push(
+        0xe0 | (charcode >> 12),
+        0x80 | ((charcode >> 6) & 0x3f),
+        0x80 | (charcode & 0x3f)
+      );
+    }
+    // surrogate pair
+    else {
+      i++;
+      // UTF-16 encodes 0x10000-0x10FFFF by
+      // subtracting 0x10000 and splitting the
+      // 20 bits of 0x0-0xFFFFF into two halves
+      charcode =
+        0x10000 + (((charcode & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
+      utf8.push(
+        0xf0 | (charcode >> 18),
+        0x80 | ((charcode >> 12) & 0x3f),
+        0x80 | ((charcode >> 6) & 0x3f),
+        0x80 | (charcode & 0x3f)
+      );
+    }
+  }
+  return utf8;
+}
+
 // if (global.btoa == undefined || globalThis.atob == undefined) {
 //   global.btoa = (str) => {
 //     return Buffer.from(str, "utf8").toString("base64");
@@ -178,7 +213,7 @@ function Utf8ArrayToStr(array) {
   };
 })();
 
-const btoa = global.decode;
+const btoa = (uintarr) => global.encode(uintarr);
 const atob = (b64) => new Uint8Array(global.decode(b64));
 
 var data = {
@@ -246,12 +281,13 @@ function dcg_encode(data) {
 
   const version = 0;
   const eggCount = eggs.size;
-  if (data?.name === undefined) {
+  if (data?.name === undefined || data?.name?.length === undefined) {
     console.log("Bad name");
     return;
   }
-  const nameLength =
-    data.name != undefined && data.name.length ? data.name.length : 0;
+
+  const nameBytes = toUTF8Array(data.name);
+  const nameBytesLength = nameBytes.length;
 
   var bytePos = 0;
   byteBuffer = [];
@@ -268,7 +304,7 @@ function dcg_encode(data) {
 
   var byte = (version << 4) | (eggCount & 15);
   writeByte(byte);
-  writeByte(nameLength);
+  writeByte(nameBytesLength);
 
   var writeWithCarry = (value) => {
     var carry = value > 127;
@@ -334,12 +370,23 @@ function dcg_encode(data) {
   var sets = parseDataToMap(data.deck);
 
   writeDeckMap(sets);
+
+  //calculate checksum
+  var checksum = 0;
+  for (var i = 3; i < byteBuffer.length; i++) {
+    checksum += byteBuffer[i];
+  }
+  checksum = checksum & 0xff;
+  byteBuffer[1] = checksum;
+
   if (data?.name?.length > 0) {
-    for (var i = 0; i < deckNameBytes.length; i++) {
-      writeByte(deckNameBytes[i]);
+    for (var i = 0; i < nameBytesLength; i++) {
+      writeByte(nameBytes[i]);
     }
   }
 
+  encodedString += encode(byteBuffer).replace(/\+/g, "-").replace(/\//g, "_");
+  console.log(encodedString);
   return encodedString;
 }
 
@@ -476,7 +523,7 @@ function dcg_decode(input) {
 /* dcg_decode(
   "DCGAV0dU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcEBiFNUMiBBRwNTVDMgQUQEU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 ); */
-dcg_decode(
-  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
-);
-//dcg_encode(data);
+//dcg_decode(
+//  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
+//);
+dcg_encode(data);
