@@ -14,10 +14,6 @@ if (global.btoa == undefined || globalThis.atob == undefined) {
   };
 }
 
-function getBytes(b64Encoded) {
-  return new Buffer.from(b64Encoded, "base64");
-}
-
 /**
  *
  * @param {string} input
@@ -40,7 +36,7 @@ function dcg_decode(input) {
     return "";
   }
 
-  const data = input.substr(3);
+  const data = input.substr(3).replace(/\-/g, "+").replace(/\_/g, "/");
   const bData = atob(data);
   const bufferSize = bData.length;
   console.log(atob(data));
@@ -49,9 +45,9 @@ function dcg_decode(input) {
   const nextByte = (offset = 1) => {
     bytePos += offset;
   };
-  const getByte = () => bData[bytePos]; //bData.charCodeAt(bytePos);
+  const getByte = () => bData[bytePos];
   const getString = (length) =>
-    bData.slice(bytePos, bytePos + length).toString("latin1");
+    bData.slice(bytePos, bytePos + length).toString("utf8");
 
   var byte = getByte();
   const version = (byte & 240) >> 4;
@@ -156,5 +152,5 @@ function dcg_decode(input) {
 }
 
 dcg_decode(
-  "DCGAVQdU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcHBQlNUMiBBRwNTdGFydGVyIERlY2ssIEdhaWEgUmVkIFtTVC0xXQ__"
+  "DCGARkiU1Q1IEHBU1Q1IE-CwcHBwcFBwcFBQUHBwUFTdGFydGVyIERlY2ssIE1hY2hpbmUgQmxhY2sgW1NULTVd"
 );
