@@ -145,7 +145,11 @@ const btoa = global.decode;
 const atob = (b64) => new Uint8Array(global.decode(b64));
 
 var data = {
-  digiEggs: { id: "ST1-01", count: 4 },
+  digiEggs: [
+    { id: "ST2-01", count: 1 },
+    { id: "ST1-01", parallel: 1, count: 3 },
+    { id: "ST1-01", count: 1 },
+  ],
   deck: [
     { id: "ST1-02", parallel: 1, count: 4 },
     { id: "ST1-03", count: 4 },
@@ -175,27 +179,98 @@ function dcg_encode(data) {
   var encodedString = "DCG";
 
   const eggs = new Map();
+  const setPadding = new Map();
   // group eggs into sets
+  if (data.digiEggs === undefined && data.digiEggs.length === undefined) {
+    console.log("Bad data");
+    return null;
+  }
   if (data.digiEggs) {
-    data.digiEggs.forEach((eggs) => {
-      var temp = eggs.id.split("-");
+    data.digiEggs.forEach((egg) => {
+      var temp = egg.id.split("-");
       var set = temp[0];
-      var id = temp[1];
+      var id = Number(temp[1]);
+      var parallel = egg.parallel || 0;
       if (eggs.has(set)) {
-        eggs.get(set).push([id, count]);
+        eggs.get(set).push([id, egg.count, parallel]);
       } else {
-        eggs.set(set, [id, count]);
+        eggs.set(set, [[id, egg.count, parallel]]);
+        setPadding.set(set, temp[1].length);
       }
     });
   }
 
   const version = 0;
-  const eggCount = eggSets.count;
+  const eggCount = eggs.size;
   const nameLength =
     data.name != undefined && data.name.length ? data.name.length : 0;
 
+  var bytePos = 0;
+  byteBuffer = [];
+  const writeByte = (b) => {
+    byteBuffer[bytePos] = b & 255;
+    console.log(bytePos, b.toString(2).padStart(8, "0"));
+    bytePos++;
+  };
+  const writeString = (s, length) => {
+    for (var i = 0; i < length; i++) {
+      writeByte(s.charCodeAt(i));
+    }
+  };
+
+  var byte = (version << 4) | (eggCount & 15);
+  writeByte(byte);
+  writeByte(nameLength);
+
+  //Write egg header if eggs
+  if (eggCount > 0) {
+    var eggKeys = Array.from(eggs.keys()).sort();
+    for (var i = 0; i < eggKeys.length; i++) {
+      var info = eggs.get(eggKeys[i]);
+      //write set ascii
+      writeString(eggKeys[i].padEnd(4, " "), 4);
+      var padding = setPadding.get(eggKeys[i]);
+      byte = (padding << 6) | (info.length & 63);
+      writeByte(byte);
+
+      info.sort((a, b) => {
+        //compare id
+        if (a[0] < b[0]) {
+          // compare id
+          return -1;
+        }
+        if (a[2] < b[2]) {
+          // compare parallel
+          return -1;
+        }
+        return 1;
+      });
+      console.log(info);
+      var currentOffset = 0;
+      for (var i = 0; i < info.length; i++) {
+        var count = info[i][1];
+        var parallel = info[i][2];
+        var offset;
+      }
+    }
+  }
+
   var sets = new Map();
   // group cards into sets
+  if (data.deck == undefined) {
+    console.log("Bad format");
+    return null;
+  }
+  data.deck.forEach((card) => {
+    var temp = card.id.split("-");
+    var set = temp[0];
+    var id = temp[1];
+    if (sets.has(set)) {
+      sets.get(set).push([id, card.count, card.parallel]);
+    } else {
+      sets.set(set, [id, card.count, card.parallel]);
+    }
+  });
 
   return encodedString;
 }
@@ -330,6 +405,8 @@ function dcg_decode(input) {
   }
 }
 
-dcg_decode(
+/* dcg_decode(
   "DCGAV0dU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcEBiFNUMiBBRwNTVDMgQUQEU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
-);
+); */
+
+dcg_encode(data);
