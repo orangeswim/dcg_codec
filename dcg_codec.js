@@ -281,31 +281,32 @@ function base64ArrayBuffer(arrayBuffer) {
 const btoa = (uintarr) => global.encode(uintarr);
 const atob = (b64) => new Uint8Array(global.decode(b64));
 
-var data = {
-  digiEggs: [
-    { id: "ST1-01", count: 4 },
-    { id: "ST1-01", parallel: 1, count: 4 },
-    { id: "ST2-01", count: 1 },
-  ],
-  deck: [
-    { id: "ST1-02", parallel: 1, count: 4 },
-    { id: "ST1-03", count: 4 },
-    { id: "ST1-04", count: 4 },
-    { id: "ST1-05", count: 4 },
-    { id: "ST1-06", count: 4 },
-    { id: "ST1-07", count: 2 },
-    { id: "ST1-08", count: 4 },
-    { id: "ST1-09", count: 4 },
-    { id: "ST1-10", count: 2 },
-    { id: "ST1-11", count: 2 },
-    { id: "ST1-12", count: 4 },
-    { id: "ST1-13", count: 4 },
-    { id: "ST1-14", count: 4 },
-    { id: "ST1-15", count: 2 },
-    { id: "ST1-16", count: 2 },
-  ],
-  name: "Deck name",
-};
+// var data = {
+//   digiEggs: [
+//     { id: "ST1-01", count: 4 },
+//     { id: "ST1-01", parallel: 1, count: 4 },
+//     { id: "ST2-01", count: 1 },
+//   ],
+//   deck: [
+//     { id: "ST1-02", parallel: 1, count: 4 },
+//     { id: "ST1-03", count: 4 },
+//     { id: "ST1-04", count: 4 },
+//     { id: "ST1-05", count: 4 },
+//     { id: "ST1-06", count: 4 },
+//     { id: "ST1-07", count: 2 },
+//     { id: "ST1-08", count: 4 },
+//     { id: "ST1-09", count: 4 },
+//     { id: "ST1-10", count: 2 },
+//     { id: "ST1-11", count: 2 },
+//     { id: "ST1-12", count: 4 },
+//     { id: "ST1-13", count: 4 },
+//     { id: "ST1-14", count: 4 },
+//     { id: "P-001", count: 1 },
+//     { id: "P-999", count: 1 },
+//     { id: "ST1-16", count: 2 },
+//   ],
+//   name: "Deck name",
+// };
 
 /**
  *
@@ -613,4 +614,4 @@ function dcg_decode(input) {
 //  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 //);
 //dcg_decode("DCGAh0JU1QxIEIBiFNUMiBBAVNUMSBPysHBwcFBwcFBQcHBwUFBRGVjayBuYW1l");
-dcg_encode(data);
+// dcg_encode(data);
