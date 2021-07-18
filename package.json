@@ -1,6 +1,6 @@
 {
   "name": "dcg-codec",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "DigimonCardGame codec",
   "main": "dcg_codec.js",
   "scripts": {

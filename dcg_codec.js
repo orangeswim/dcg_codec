@@ -402,7 +402,7 @@ function dcg_encode(data) {
           // compare id
           return a[2] - b[2];
         } else {
-          a[0] - b[0];
+          return a[0] - b[0];
         }
       });
       console.log(info);
@@ -563,6 +563,7 @@ function dcg_decode(input) {
     };
 
     var setCardOffset = 0;
+    var cards = [];
     for (var i = 0; i < count; i++) {
       nextByte();
       byte = getByte();
@@ -587,31 +588,43 @@ function dcg_decode(input) {
         byte.toString(2).padStart(8, "0"),
         byte.toString(16).padStart(2, "0")
       );
+      cards.push([
+        `${set}-${setCardOffset.toString().padStart(padding, "0")}`,
+        cardcount,
+      ]);
     }
+    return cards;
   };
+  var struct = { digiEggs: [], deck: [] };
   for (var i = 0; i < eggCount; i++) {
-    readCard();
+    struct.digiEggs.push(...readCard());
   }
   totalCards = 0;
-  while (totalCards < 49) {
-    readCard();
-    console.log(totalCards);
+  while (totalCards < 49 && bytePos < bData.length - nameLength - 1) {
+    struct.deck.push(...readCard());
+    console.log(totalCards, bytePos);
   }
 
-  for (var i = 0; i < 20; i++) {
-    console.log(
-      i,
-      bData[i].toString(2).padStart(8, "0"),
-      bData[i].toString(16).padStart(2, "0")
-    );
-  }
+  // for (var i = 0; i < 20; i++) {
+  //   console.log(
+  //     i,
+  //     bData[i].toString(2).padStart(8, "0"),
+  //     bData[i].toString(16).padStart(2, "0")
+  //   );
+  // }
+  nextByte();
+  console.log(getString(nameLength));
+  return struct;
 }
 
 /* dcg_decode(
   "DCGAV0dU1QxIEHBU1QxIE7CwcHBwUHBwUFBwcEBiFNUMiBBRwNTVDMgQUQEU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
 ); */
-//dcg_decode(
-//  "DCGAYYdU1QxIEHBUCAgIIIBB3xTVDEgTsLBwcHBQcHBQUHBwcFCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0"
-//);
-//dcg_decode("DCGAh0JU1QxIEIBiFNUMiBBAVNUMSBPysHBwcFBwcFBQcHBwUFBRGVjayBuYW1l");
+//console.log(dcg_decode("DCGAfQAQlQyIIEBQlQyIIEGGw=="));
+//dcg_decode("DCGIScdAJydAUEDAZydAUgDAgMBAwEDAQMBAQEDBwMCU3RhcnRlciBEZWNrLCBHYWlhIFJlZCBbU1QtMV0");
 // dcg_encode(data);
+
+export var encode = dcg_encode;
+export var decode = dcg_decode;
+var codec = { encode, decode };
+export default codec;
